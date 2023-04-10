@@ -5,9 +5,12 @@ const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const auth = require("../middlewares/auth");
 const{sendCode,verifyOtp } = require('../Controllers/userController')
+var randtoken = require('rand-token')
+const refreshTockens ={}
 
 authRouter.route("/api/sendCode").post(sendCode);
-authRouter.route("/api/sendCode/verify").post(verifyOtp);
+authRouter.route("/api/sendCode/verifyOtp").post(verifyOtp);
+
 //signup
 authRouter.post("/api/signup", async (req, res) => {
   try {
@@ -71,8 +74,10 @@ authRouter.post("/api/signin", async (req, res) => {
       return res.status(400).json({ msg: "Incorrect password" });
     }
 
-   const token = jwt.sign({id:user._id},"passwordKey");
-    res.json({token,...user._doc});
+   const token = jwt.sign({id:user._id},"passwordKey",{expiresIn: 300});
+   var refreshTocken = randtoken.uid(256);
+    refreshTockens[refreshTocken] = email
+    res.json({token,refreshTocken:refreshTocken,...user._doc});
      
   } catch (e) {
     res.status(500).json({ error: e.message });

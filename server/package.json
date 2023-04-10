@@ -21,7 +21,9 @@
     "lodash": "^4.17.21",
     "lowdash": "^1.2.0",
     "mongoose": "^7.0.2",
-    "otp-generator": "^4.0.1"
+    "otp-generator": "^4.0.1",
+    "rand-token": "^1.0.1",
+    "uid": "^2.0.2"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"
