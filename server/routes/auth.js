@@ -4,10 +4,10 @@ const authRouter = express.Router();
 const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const auth = require("../middlewares/auth");
-const{sendCode } = require('../Controllers/userController')
+const{sendCode,verifyOtp } = require('../Controllers/userController')
 
 authRouter.route("/api/sendCode").post(sendCode);
-
+authRouter.route("/api/sendCode/verify").post(verifyOtp);
 //signup
 authRouter.post("/api/signup", async (req, res) => {
   try {
@@ -47,6 +47,7 @@ authRouter.post("/api/signup", async (req, res) => {
     });
 
     user = await user.save();
+    console.log("user saved to db")
     res.json(user);
 
     //return the data to the user
