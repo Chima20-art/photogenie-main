@@ -56,7 +56,7 @@ const userSchema = mongoose.Schema({
       message: "Please enter a valid email adress",
     },
   },
-  phone: {
+  number: {
     trim: true,
     type: String,
     validate: {
@@ -80,6 +80,14 @@ const userSchema = mongoose.Schema({
     },
   },
 });
+
+userSchema.methods.generateJWT = function () {
+  const token = jwt.sign({
+      _id: this._id,
+      number: this.number
+  }, process.env.JWT_SECRET_KEY, { expiresIn: "7d" });
+  return token
+}
 
 const User = mongoose.model("User", userSchema);
 module.exports = User;

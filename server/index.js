@@ -1,5 +1,6 @@
 //import packages
 const express =require ('express');
+const bodyParser = require("body-parser")
 const mongoose= require('mongoose');
 require('dotenv').config();
 
@@ -14,6 +15,9 @@ const dbURL =process.env.DB_URL;
 //middleware 
 app.use(express.json());
 app.use(authRouter);
+
+
+app.use(bodyParser.urlencoded({ extended: true }));
 
 //Database connect
 mongoose.connect(dbURL).then(()=>{

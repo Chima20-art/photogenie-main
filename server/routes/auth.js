@@ -19,7 +19,7 @@ authRouter.post("/api/signup", async (req, res) => {
       password,
       birthday,
       username,
-      phone,
+      number,
       country,
     } = req.body;
 
@@ -42,7 +42,7 @@ authRouter.post("/api/signup", async (req, res) => {
       lastname,
       birthday,
       username,
-      phone,
+      number,
       country
     });
 

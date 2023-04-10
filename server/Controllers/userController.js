@@ -1,4 +1,4 @@
-const _ = require("lowdash");
+const _ = require("lodash");
 const axios = require("axios");
 const otpGenerator = require('otp-generator');
 const {Otp} =  require('../models/otpModel');
@@ -8,15 +8,15 @@ const User = require("../models/user")
 
 module.exports.sendCode =  async(req,res)=>{
      const user =await User.findOne({
-       phone:req.body.phone
+       number:req.body.number
      });
      if(user) return res.status(400).send("User with the same phone number already registered!");
      const OTP = otpGenerator.generate(6,{
        digits:true,alphabets:false,upperCase:false, specialChars:false
      });
-     const phone = req.body.phone;
+     const number = req.body.number;
      console.log(OTP);
-     const otp = new Otp({ number: phone, otp: OTP });
+     const otp = new Otp({ number: number, otp: OTP });
      const salt = await bcrypt.genSalt(10)
      otp.otp = await bcrypt.hash(otp.otp, salt);
     const result = await otp.save();
