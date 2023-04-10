@@ -4,7 +4,9 @@ const authRouter = express.Router();
 const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const auth = require("../middlewares/auth");
-const{sendCode } = require('../Controllers/userControlle')
+const{sendCode } = require('../Controllers/userController')
+
+authRouter.route("/api/sendCode").post(sendCode);
 
 //signup
 authRouter.post("/api/signup", async (req, res) => {
@@ -21,7 +23,7 @@ authRouter.post("/api/signup", async (req, res) => {
       country,
     } = req.body;
 
-    authRouter.route("/api/sendCode").post(sendCode);
+
 
     //post that data in database
     const existinguser = await User.findOne({ email });

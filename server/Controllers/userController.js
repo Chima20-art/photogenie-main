@@ -16,6 +16,7 @@ module.exports.sendCode =  async(req,res)=>{
      console.log(OTP);
      
      const otp = new Otp({phone:phone, otp:OTP});
+     const salt = await bcrypt.hash(otp.otp, salt);
      const result = await otp.save();
      return res.status(200).send("Otp sent successfully!")
    
