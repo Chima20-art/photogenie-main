@@ -1,17 +1,11 @@
 const mongoose = require("mongoose");
+const Joi = require("joi");
 
 const userSchema = mongoose.Schema({
   name: {
     required: true,
     type: String,
     trim: true,
-    validate: {
-      validator: (value) => {
-        const re = /^[a-zA-Z]/;
-        return value.match(re);
-      },
-      message: "name invalid",
-    },
   },
   lastname: {
     required: true,
@@ -47,14 +41,6 @@ const userSchema = mongoose.Schema({
     required: true,
     type: String,
     trim: true,
-    validate: {
-      validator: (value) => {
-        const re =
-          /^(([^<>()[\]\.,;:\s@\"]+(\.[^<>()[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})$/i;
-        return value.match(re);
-      },
-      message: "Please enter a valid email adress",
-    },
   },
   number: {
     trim: true,
@@ -79,7 +65,19 @@ const userSchema = mongoose.Schema({
       message: "Your password is so short",
     },
   },
+  verified: {
+    type: Boolean,
+    default: false,
+  },
 });
+
+const validate = (user) => {
+  const schema = Joi.object({
+    name: Joi.string().min(3).max(255).required(),
+    email: Joi.string().email().required(),
+  });
+  return schema.validate(user);
+};
 
 userSchema.methods.generateJWT = function () {
   const token = jwt.sign({
@@ -90,4 +88,4 @@ userSchema.methods.generateJWT = function () {
 }
 
 const User = mongoose.model("User", userSchema);
-module.exports = User;
+module.exports = {User, validate};
