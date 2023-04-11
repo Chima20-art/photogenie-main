@@ -1,0 +1,14 @@
+
+<!DOCTYPE html>
+<html>
+<body>
+
+    <script>
+        const queryString =windo.location.search;
+        const urlParams = new URLSearchParams(queryString);
+        const error = urlParams.get("error");
+        const message =  urlParams.get("message");
+        const bodyContent = !error? `<div>Email has been verified</div>`:`<h2>${message}</h2>`
+    </script>
+</body>
+</html>
