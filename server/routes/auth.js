@@ -1,6 +1,6 @@
 const express = require('express')
 const authRouter = express.Router()
-const { sendCode, verifyOtp, signup, signin, verify } = require('../Controllers/userController')
+const { sendCode, verifyOtp, signup, signin, verifyEmail, requestPasswordReset, resetPassword } = require('../Controllers/userController')
 
 
 
@@ -13,10 +13,15 @@ authRouter.route('/api/signup').post(signup)
 
 authRouter.route('/api/signin').post(signin)
 
-authRouter.route('/api/verify/:userId/:uniqueString').get(verify)
+authRouter.route('/api/verify/:userId/:uniqueString').get(verifyEmail)
 
+//verified email page route
 authRouter.get('/api/verified', (req, res) => {
     res.sendFile(path.join(__dirname, '../views/verified.html'))
 })
+resetPassword
+authRouter.post('/api/requestPasswordReset', requestPasswordReset)
+authRouter.post('/api/resetPassword', resetPassword)
+
 
 module.exports = authRouter
