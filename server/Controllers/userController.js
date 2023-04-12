@@ -10,26 +10,11 @@ var randtoken = require('rand-token')
 const refreshTockens = {}
 const nodemailer = require("nodemailer");
 var bcrypt = require('bcryptjs');
-const { v4: uuidv4 } = require('uuid')
+const { v4: uuidv4 } = require('uuid');
+const PasswordReset = require('../models/PasswordReset');
 
 
-let transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.PASSWORD,
-  },
-  secure: true,
-})
 
-transporter.verify((error, success) => {
-  if (error) {
-      console.log(error)
-  } else {
-      console.log('Ready for message')
-      console.log(success)
-  }
-})
 
 module.exports.signup = (req,res) => {
     {
@@ -88,65 +73,7 @@ module.exports.signup = (req,res) => {
         })
     }
 }
-const sendVerificationEmail = ({ _id, email }, res) => {
-    const uniqueString = uuidv4() + _id
-    const baseUrl = 'http://localhost:3000' // backend url
-    const verifyUrl = baseUrl + '/api/verify/' + _id + '/' + uniqueString
-    console.log('verifyUrl', verifyUrl)
-  
-    const mailOptions = {
-        from: process.env.GMAIL_USER,
-        to: email,
-        subject: 'verify email',
-        html: `<p>Verify you email address to complete the signup and login into your account. </p>
-    <p><b>This link expires in 6 hours.</b></p>
-    <p>Press <a href=${verifyUrl}> here </a> to proceed</p> `,
-    }
-  
-    const saltRounds = 8
-    bcrypt
-        .hash(uniqueString, saltRounds)
-        .then((hashedUniqueString) => {
-            const newVerification = new UserVerification({
-                userId: _id,
-                uniqueString: hashedUniqueString,
-                createdAt: Date.now(),
-                expiresAt: Date.now() + 2160000,
-            })
-            newVerification
-                .save()
-                .then(() => {
-                     transporter
-                        .sendMail(mailOptions)
-                         .then(() => {
-                             res.json({
-                                 status: 'PENDING',
-                                 message: 'verification email sent',
-                            })
-                        })
-                        .catch((error) => {
-                           console.log(error)
-                            res.json({
-                                status: 'Failed',
-                               message: 'Couldnt save verification email data ',
-                            })
-                        })
-                })
-                .catch((error) => {
-                    console.log(error)
-                    res.json({
-                        status: 'Failed',
-                        message: 'An error occured while hashing email data',
-                    })
-                })
-        })
-        .catch((eroor) => {
-            res.json({
-                status: 'Failed',
-                message: 'An error occured while hashing email data',
-            })
-        })
-  }
+
 module.exports.signin = (req,res) => {
     const { email, password } = req.body
 
@@ -204,15 +131,18 @@ module.exports.signin = (req,res) => {
         })
 }
 
-module.exports.verify =(req,res) => {
+//verify Email
+module.exports.verifyEmail =(req,res) => {
     let { userId, uniqueString } = req.params
     UserVerification.find({ userId })
         .then((result) => {
             if (result.length > 0) {
+                //user verification record exists so we proceed
                 const { expiresAt } = result[0]
                 const hashedUniqueString = result[0].uniqueString
 
                 if (expiresAt < Date.now()) {
+                    //record has expired so we delete it 
                     UserVerification.deleteOne({ userId })
                         .then((result) => {
                             User.deleteOne({ id: userId })
@@ -240,10 +170,13 @@ module.exports.verify =(req,res) => {
                             )
                         })
                 } else {
+                    //valid record exists so we validate the user string
+                    //compare first
                     bcrypt
                         .compare(uniqueString, hashedUniqueString)
                         .then((result) => {
                             if (result) {
+                                //strings match
                                 User.updateOne(
                                     { _id: userId },
                                     { verified: true }
@@ -268,6 +201,7 @@ module.exports.verify =(req,res) => {
                                         )
                                     })
                             } else {
+                                //existing record but incorrect verification details passed
                                 let message =
                                     'Invalid verification details passed. Check your inbox'
                                 res.redirect(
@@ -284,6 +218,7 @@ module.exports.verify =(req,res) => {
                         })
                 }
             } else {
+                //user verification record does't exist
                 let message =
                     "Account record does't exist or has been verified already "
                 res.redirect(`/api/verified?error=true&message=${message}`)
@@ -337,3 +272,310 @@ module.exports.sendCode =  async(req,res)=>{
         return res.status(400).send("Your OTP was wrong!")
     }
 }
+
+module.exports.requestPasswordReset = (req,res) => {
+    const {email, redirectUrl} = req.body;
+    //check if email exists
+    User.find({email})
+    .then((data) =>{
+        if(data.length){
+            //user exists
+            if(!data[0].verified){
+                res.json({
+                    status:"Failed",
+                    message:"Email hasn't  been verified yet. Check your inbox"
+                })
+            }else{
+                //send verification Email
+                sendResetEmail(data[0], redirectUrl, res)
+            }
+
+        }else{
+            res.json({
+                status:"Failed",
+                message:"No account with the supplied email exists"
+            })
+        }
+    })
+    .catch(erorr =>{
+        console.log(erorr);
+        res.json({
+            status:"Failed",
+            message:"An error occuured while checking for existing user"
+        })
+    })
+
+}
+
+module.exports.resetPassword = (req,res) => {
+    let {userId, resetString, newPassword} = req.body;
+PasswordReset
+.find({userId})
+.then(result => {
+    if(result.length>0){
+        const {expiresAt} = result[0];
+        const hashedResetString = result[0].resetString;
+        if (expiresAt < Date.now()){
+            PasswordReset
+            .deleteOne({userId})
+            .then(() => {
+                res.json({
+                    status:"Failed",
+                    message:"Password reset link has expired."
+                })
+            })
+            .catch(error =>{
+                res.json({
+                    status:"Failed",
+                    message:"Clearing password reset record failed"
+                })
+            }
+            )
+        } else{
+            bcrypt
+            .compare(resetString,hashedResetString)
+            .then((result) =>{
+                if(result){
+
+                    const saltRounds = 10;
+                    bcrypt
+                    .hash(newPassword, saltRounds)
+                    .then(hashedNewPassword => {
+                        //update user function
+                        User
+                        .updateOne({_id: userId}, {password: hashedNewPassword})
+                        .then(()=>{
+                            //update complete, now delete reset record
+                            PasswordReset
+                            .deleteOne({userId})
+                            .then(()=>{
+                                res.json({
+                                    status:"SUCCESS",
+                                    message:"Password has been reset successfully."
+                                })
+                            })
+                            .catch(error =>{
+                                res.json({
+                                    status:"Failed",
+                                    message:"An error occured while finalizing password rest."
+                                })
+                            })
+
+                        })
+                        .catch(error =>{
+                            res.json({
+                                status:"Failed",
+                                message:"Updating user password faailed"
+                            })
+                        })
+                    })
+                    .catch(error =>{
+                        res.json({
+                            status:"Failed",
+                            message:"An error occured while hashing new password."
+                        })
+                    })
+
+                }else{
+                    res.json({
+                        status:"Failed",
+                        message:"Invalid password reset details passed"
+                    })
+                }
+            })
+            .catch(error =>{
+                console.log(error)
+                res.json({
+                    status:"Failed",
+                    message:"Comparing password reset strings failed."
+                })
+            })
+        }
+    }else{
+        // Password reset record does'nt exist
+        res.json({
+            status:"Failed",
+            message:"Password reset record request not found"
+        })
+    }
+})
+.catch(error=>{
+    console.log(error);
+    res.json({
+        status:"Failed",
+        message:"Checking for existing password reset record failed"
+    })
+})
+
+}
+
+
+
+
+
+
+
+
+
+
+
+//send password reset email
+const sendResetEmail = ({_id,email}, redirectUrl, res) =>{
+
+    const resetString = uuidv4() + _id;
+    const frontendUrl = redirectUrl + '/' + _id + '/' + resetString
+    console.log('verifyUrl', frontendUrl)
+    
+//clear all reset existing records
+
+    PasswordReset
+    .deleteMany({userId:_id})
+    .then(result =>{
+        //Reset Records deleted successfully
+        //we send Email
+        const mailOptions = {
+            from: process.env.GMAIL_USER,
+            to: email,
+            subject: 'Password Reset',
+            html: `<p>Use the Link below to reset password </p>
+        <p><b>This link expires in 60 mins.</b></p>
+        <p>Press <a href=${frontendUrl}> here </a> to proceed</p> `,
+        };
+
+        const saltRounds = 10;
+        bcrypt
+        .hash(resetString,saltRounds)
+        .then(hashedResetString =>{
+            const newPasswordReset = new PasswordReset({
+                userId:_id,
+                resetString:hashedResetString,
+                 createdAt: Date.now(),
+                 expiresAt:Date.now() + 36000000
+            });
+            newPasswordReset
+            .save()
+            .then(()=>{
+                transporter
+                .sendMail(mailOptions)
+                .then(()=>{
+                   
+            res.json({
+                status:"PENDING",
+                message:"Password reset email sent!"
+            })
+         })
+                .catch(error =>{
+                    console.log(error);
+                res.json({
+                status:"Failed",
+                message:"Password reset email failed"
+            })
+                })
+            })
+            .catch(error => {
+                console.log(error);
+            res.json({
+                status:"Failed",
+                message:"Couldn't save password reset data!"
+            })
+            })
+        })
+        .catch(error => {
+            console.log(error);
+            res.json({
+                status:"Failed",
+                message:"An error occured while hashing the password reset data!"
+            })
+    })
+
+    })
+    .catch(error => {
+        console.log(error);
+        res.json({
+            status:"Failed",
+            message:"Error occured while clearing existing reset records"
+        })
+    })  
+}
+
+
+let transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.PASSWORD,
+    },
+    secure: true,
+  })
+  
+  transporter.verify((error, success) => {
+    if (error) {
+        console.log(error)
+    } else {
+        console.log('Ready for message')
+        console.log(success)
+    }
+  })
+
+const sendVerificationEmail = ({ _id, email }, res) => {
+    const uniqueString = uuidv4() + _id
+    const baseUrl = 'http://localhost:3000' //Backend url
+    const verifyUrl = baseUrl + '/api/verify/' + _id + '/' + uniqueString
+    console.log('verifyUrl', verifyUrl)
+  
+    const mailOptions = {
+        from: process.env.GMAIL_USER,
+        to: email,
+        subject: 'verify email',
+        html: `<p>Verify you email address to complete the signup and login into your account. </p>
+    <p><b>This link expires in 6 hours.</b></p>
+    <p>Press <a href=${verifyUrl}> here </a> to proceed</p> `,
+    }
+  
+    //hash the unique string
+    const saltRounds = 8
+    bcrypt
+        .hash(uniqueString, saltRounds)
+        .then((hashedUniqueString) => {
+            //set values in userVerification collection
+            const newVerification = new UserVerification({
+                userId: _id,
+                uniqueString: hashedUniqueString,
+                createdAt: Date.now(),
+                expiresAt: Date.now() + 2160000,
+            })
+            newVerification
+                .save()
+                .then(() => {
+                     transporter
+                        .sendMail(mailOptions)
+                         .then(() => {
+                            //email sent and verification record saved
+                             res.json({
+                                 status: 'PENDING',
+                                 message: 'verification email sent',
+                            })
+                        })
+                        .catch((error) => {
+                           console.log(error)
+                            res.json({
+                                status: 'Failed',
+                               message: 'Couldnt save verification email data ',
+                            })
+                        })
+                })
+                .catch((error) => {
+                    console.log(error)
+                    res.json({
+                        status: 'Failed',
+                        message: 'An error occured while hashing email data',
+                    })
+                })
+        })
+        .catch((error) => {
+            res.json({
+                status: 'Failed',
+                message: 'An error occured while hashing email data',
+            })
+        })
+  }
