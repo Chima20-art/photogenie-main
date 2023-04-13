@@ -1,6 +1,6 @@
 const express = require('express')
 const authRouter = express.Router()
-const { sendCode, verifyOtp, signup, signin, verifyEmail, requestPasswordReset, resetPassword,requestPasswordResetByDigits, resetPasswordByDigits } = require('../Controllers/userController')
+const { sendCode, verifyOtp, signup, signin, verifyEmail, requestPasswordReset, resetPassword,requestPasswordResetByDigits, resetPasswordByDigits,updateUserData } = require('../Controllers/userController')
 const auth = require("../middlewares/auth");
 const { User } = require('../models/user')
 
@@ -44,9 +44,12 @@ authRouter.route('/api/verifyOtp').post(verifyOtp)
 
 authRouter.route('/api/signup').post(signup)
 
+
 authRouter.route('/api/signin').post(signin)
 
 authRouter.route('/api/verify/:userId/:uniqueString').get(verifyEmail)
+
+authRouter.route('/api/updateUserData').post(updateUserData)
 
 //verified email page route
 authRouter.get('/api/verified', (req, res) => {

@@ -719,6 +719,35 @@ PasswordReset
 
 }
 
+module.exports.updateUserData= (req,res) =>{
+    let {id,name,lastname,birthday} =req.body;
+    User
+    .findById(id)
+    .then(result =>{
+        User
+        .updateOne({_id:id},{name,lastname,birthday} )
+        .then(()=>{
+            res.json({
+                status:"SUCCESS",
+                message:"user Data has been updated has been updated."
+            })
+        }).catch(error =>{
+            console.log(error)
+            res.json({
+                status:"Failed",
+                message:"An error occured while updating user name."
+            })
+        })
+
+    }).catch(error =>{
+        console.log(error)
+        res.json({
+            status:"Failed",
+            message:"An error occured while trying to findUserById."
+        })
+    })
+}
+
 let transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
