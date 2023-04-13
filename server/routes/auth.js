@@ -1,6 +1,6 @@
 const express = require('express')
 const authRouter = express.Router()
-const { sendCode, verifyOtp, signup, signin, verifyEmail, requestPasswordReset, resetPassword } = require('../Controllers/userController')
+const { sendCode, verifyOtp, signup, signin, verifyEmail, requestPasswordReset, resetPassword,requestPasswordResetByDigits, resetPasswordByDigits } = require('../Controllers/userController')
 
 
 
@@ -22,6 +22,9 @@ authRouter.get('/api/verified', (req, res) => {
 resetPassword
 authRouter.post('/api/requestPasswordReset', requestPasswordReset)
 authRouter.post('/api/resetPassword', resetPassword)
+
+authRouter.post('/api/requestPasswordResetByDigits', requestPasswordResetByDigits)
+authRouter.post('/api/resetPasswordByDigits', resetPasswordByDigits)
 
 
 module.exports = authRouter
