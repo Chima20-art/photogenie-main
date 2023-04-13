@@ -307,6 +307,8 @@ module.exports.requestPasswordReset = (req,res) => {
 
 }
 
+
+
 module.exports.resetPassword = (req,res) => {
     let {userId, resetString, newPassword} = req.body;
 PasswordReset
@@ -418,13 +420,12 @@ PasswordReset
 
 
 
-
 //send password reset email
-const sendResetEmail = ({_id,email}, redirectUrl, res) =>{
+const sendResetEmail = ({_id,email}, res) =>{
 
     const resetString = uuidv4() + _id;
     const frontendUrl = redirectUrl + '/' + _id + '/' + resetString
-    console.log('verifyUrl', frontendUrl)
+    console.log('frontendUrl', frontendUrl)
     
 //clear all reset existing records
 
@@ -449,8 +450,8 @@ const sendResetEmail = ({_id,email}, redirectUrl, res) =>{
             const newPasswordReset = new PasswordReset({
                 userId:_id,
                 resetString:hashedResetString,
-                 createdAt: Date.now(),
-                 expiresAt:Date.now() + 36000000
+                createdAt: Date.now(),
+                expiresAt:Date.now() + 36000000
             });
             newPasswordReset
             .save()
@@ -498,6 +499,224 @@ const sendResetEmail = ({_id,email}, redirectUrl, res) =>{
     })  
 }
 
+function generateRandomNumber() {
+    var minm = 100000;
+    var maxm = 999999;
+    return Math.floor(Math
+    .random() * (maxm - minm + 1)) + minm;
+}
+
+module.exports.requestPasswordResetByDigits = (req,res) => {
+    const {email} = req.body;
+    //check if email exists
+    User.find({email})
+    .then((data) =>{
+        if(data.length){
+            //user exists
+            if(!data[0].verified){
+                res.json({
+                    status:"Failed",
+                    message:"Email hasn't  been verified yet. Check your inbox"
+                })
+            }else{
+                //send verification Email
+                sendDigitsEmail(data[0], res)
+            }
+
+        }else{
+            res.json({
+                status:"Failed",
+                message:"No account with the supplied email exists"
+            })
+        }
+    })
+    .catch(erorr =>{
+        console.log(erorr);
+        res.json({
+            status:"Failed",
+            message:"An error occuured while checking for existing user"
+        })
+    })
+
+}
+const sendDigitsEmail = ({_id,email}, res) =>{
+
+    let verificationNumber =  generateRandomNumber();
+    console.log("verificationNumber",verificationNumber)
+   
+//clear all reset existing records
+    
+    PasswordReset
+    .deleteMany({userId:_id})
+    .then(result =>{
+        //Reset Records deleted successfully
+        //we send Email
+        const mailOptions = {
+            from: process.env.GMAIL_USER,
+            to: email,
+            subject: 'Password Reset',
+            html: `<p>Use the Code below to reset password </p>
+        <p><b>${verificationNumber}</b></p>`,
+        };
+
+        const saltRounds = 10;
+        bcrypt
+        .hash(verificationNumber.toString(),saltRounds)
+        .then(hashedResetString =>{
+            console.log(hashedResetString)
+            const newPasswordReset = new PasswordReset({
+                userId:_id,
+                resetString:hashedResetString,
+                createdAt: Date.now(),
+                expiresAt:Date.now() + 36000000
+            });
+            newPasswordReset
+            .save()
+            .then(()=>{
+                transporter
+                .sendMail(mailOptions)
+                .then(()=>{
+                   
+            res.json({
+                status:"PENDING",
+                message:"Password reset email sent!"
+            })
+         })
+                .catch(error =>{
+                    console.log(error);
+                res.json({
+                status:"Failed",
+                message:"Password reset email failed"
+            })
+                })
+            })
+            .catch(error => {
+                console.log(error);
+            res.json({
+                status:"Failed",
+                message:"Couldn't save password reset data!"
+            })
+            })
+        })
+        .catch(error => {
+            console.log(error);
+            res.json({
+                status:"Failed",
+                message:"An error occured while hashing the password reset data!"
+            })
+    })
+
+    })
+    .catch(error => {
+        console.log(error);
+        res.json({
+            status:"Failed",
+            message:"Error occured while clearing existing reset records"
+        })
+    })  
+}
+
+module.exports.resetPasswordByDigits = (req,res) => {
+    let {userId, verificationNumber, newPassword} = req.body;
+PasswordReset
+.find({userId})
+.then(result => {
+    if(result.length>0){
+        const {expiresAt} = result[0];
+        const hashedVerificationNumber = result[0].resetString;
+        if (expiresAt < Date.now()){
+            PasswordReset
+            .deleteOne({userId})
+            .then(() => {
+                res.json({
+                    status:"Failed",
+                    message:"Password reset link has expired."
+                })
+            })
+            .catch(error =>{
+                res.json({
+                    status:"Failed",
+                    message:"Clearing password reset record failed"
+                })
+            }
+            )
+        } else{
+            bcrypt
+            .compare(verificationNumber,hashedVerificationNumber)
+            .then((result) =>{
+                if(result){
+
+                    const saltRounds = 10;
+                    bcrypt
+                    .hash(newPassword, saltRounds)
+                    .then(hashedNewPassword => {
+                        //update user function
+                        User
+                        .updateOne({_id: userId}, {password: hashedNewPassword})
+                        .then(()=>{
+                            //update complete, now delete reset record
+                            PasswordReset
+                            .deleteOne({userId})
+                            .then(()=>{
+                                res.json({
+                                    status:"SUCCESS",
+                                    message:"Password has been reset successfully."
+                                })
+                            })
+                            .catch(error =>{
+                                res.json({
+                                    status:"Failed",
+                                    message:"An error occured while finalizing password rest."
+                                })
+                            })
+
+                        })
+                        .catch(error =>{
+                            res.json({
+                                status:"Failed",
+                                message:"Updating user password faailed"
+                            })
+                        })
+                    })
+                    .catch(error =>{
+                        res.json({
+                            status:"Failed",
+                            message:"An error occured while hashing new password."
+                        })
+                    })
+
+                }else{
+                    res.json({
+                        status:"Failed",
+                        message:"Invalid password reset details passed"
+                    })
+                }
+            })
+            .catch(error =>{
+                console.log(error)
+                res.json({
+                    status:"Failed",
+                    message:"Comparing password reset strings failed."
+                })
+            })
+        }
+    }else{
+        // Password reset record does'nt exist
+        res.json({
+            status:"Failed",
+            message:"Password reset record request not found"
+        })
+    }
+})
+.catch(error=>{
+    console.log(error);
+    res.json({
+        status:"Failed",
+        message:"Checking for existing password reset record failed"
+    })
+})
+
+}
 
 let transporter = nodemailer.createTransport({
     service: 'gmail',
