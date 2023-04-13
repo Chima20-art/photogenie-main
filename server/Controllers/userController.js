@@ -616,9 +616,17 @@ const sendDigitsEmail = ({_id,email}, res) =>{
         })
     })  
 }
+module.exports.verifyEmailOtp = (req,res) => {
+    let {userId, otp} = req.body;
+    
 
-module.exports.resetPasswordByDigits = (req,res) => {
-    let {userId, verificationNumber, newPassword} = req.body;
+}
+
+
+
+
+module.exports.verify = (req,res) => {
+    let {userId, verificationNumber} = req.body;
 PasswordReset
 .find({userId})
 .then(result => {
@@ -647,43 +655,9 @@ PasswordReset
             .then((result) =>{
                 if(result){
 
-                    const saltRounds = 10;
-                    bcrypt
-                    .hash(newPassword, saltRounds)
-                    .then(hashedNewPassword => {
-                        //update user function
-                        User
-                        .updateOne({_id: userId}, {password: hashedNewPassword})
-                        .then(()=>{
-                            //update complete, now delete reset record
-                            PasswordReset
-                            .deleteOne({userId})
-                            .then(()=>{
-                                res.json({
-                                    status:"SUCCESS",
-                                    message:"Password has been reset successfully."
-                                })
-                            })
-                            .catch(error =>{
-                                res.json({
-                                    status:"Failed",
-                                    message:"An error occured while finalizing password rest."
-                                })
-                            })
-
-                        })
-                        .catch(error =>{
-                            res.json({
-                                status:"Failed",
-                                message:"Updating user password faailed"
-                            })
-                        })
-                    })
-                    .catch(error =>{
-                        res.json({
-                            status:"Failed",
-                            message:"An error occured while hashing new password."
-                        })
+                    res.json({
+                        status:"SUCCESS",
+                        message:"verification number match!."
                     })
 
                 }else{
@@ -718,6 +692,50 @@ PasswordReset
 })
 
 }
+module.exports.resetPasswordByDigits = (req,res) => {
+    let {userId, newPassword} = req.body;
+    const saltRounds = 10;
+    bcrypt
+    .hash(newPassword, saltRounds)
+   
+    .then(hashedNewPassword => {
+        User
+        .updateOne({_id: userId}, {password: hashedNewPassword})
+        .then(()=>{
+            //update complete, now delete reset record
+            PasswordReset
+            .deleteOne({userId})
+            .then(()=>{
+                res.json({
+                    status:"SUCCESS",
+                    message:"Password has been reset successfully."
+                })
+            })
+            .catch(error =>{
+                res.json({
+                    status:"Failed",
+                    message:"An error occured while finalizing password rest."
+                })
+            })
+        
+        })
+        .catch(error =>{
+            res.json({
+                status:"Failed",
+                message:"Updating user password faailed"
+            })
+        })
+    })
+    .catch(error =>{
+        res.json({
+            status:"Failed",
+            message:"Error occured while hashing pass"
+        })
+    })
+   
+
+}
+
 
 module.exports.updateUserData= (req,res) =>{
     let {id,name,lastname,birthday} =req.body;

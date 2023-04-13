@@ -1,6 +1,6 @@
 const express = require('express')
 const authRouter = express.Router()
-const { sendCode, verifyOtp, signup, signin, verifyEmail, requestPasswordReset, resetPassword,requestPasswordResetByDigits, resetPasswordByDigits,updateUserData } = require('../Controllers/userController')
+const { sendCode, verifyOtp, signup, signin, verifyEmail, requestPasswordReset, resetPassword,requestPasswordResetByDigits, resetPasswordByDigits,updateUserData,verifyEmailOtp } = require('../Controllers/userController')
 const auth = require("../middlewares/auth");
 const { User } = require('../models/user')
 
@@ -61,6 +61,6 @@ authRouter.post('/api/resetPassword', resetPassword)
 
 authRouter.post('/api/requestPasswordResetByDigits', requestPasswordResetByDigits)
 authRouter.post('/api/resetPasswordByDigits', resetPasswordByDigits)
-
+authRouter.post('/api/verifyEmailOtp', verifyEmailOtp)
 
 module.exports = authRouter
