@@ -1,5 +1,8 @@
 const mongoose = require("mongoose");
 const Joi = require("joi");
+const jwt = require('jsonwebtoken')
+require("dotenv").config();
+
 
 const userSchema = mongoose.Schema({
   name: {
@@ -88,4 +91,4 @@ userSchema.methods.generateJWT = function () {
 }
 
 const User = mongoose.model("User", userSchema);
-module.exports = {User, validate};
+module.exports = {User,validate};

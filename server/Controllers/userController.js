@@ -16,6 +16,8 @@ const PasswordReset = require('../models/PasswordReset');
 
 
 
+
+
 module.exports.signup = (req,res) => {
     {
         const {
@@ -230,6 +232,8 @@ module.exports.verifyEmail =(req,res) => {
             res.redirect(`/api/verified?error=true&message=${message}`)
         })
 }
+
+
 module.exports.sendCode =  async(req,res)=>{
      const user =await User.findOne({
        number:req.body.number
@@ -306,8 +310,6 @@ module.exports.requestPasswordReset = (req,res) => {
     })
 
 }
-
-
 
 module.exports.resetPassword = (req,res) => {
     let {userId, resetString, newPassword} = req.body;
@@ -411,15 +413,6 @@ PasswordReset
 
 }
 
-
-
-
-
-
-
-
-
-
 //send password reset email
 const sendResetEmail = ({_id,email}, res) =>{
 
@@ -507,7 +500,9 @@ function generateRandomNumber() {
 }
 
 module.exports.requestPasswordResetByDigits = (req,res) => {
-    const {email} = req.body;
+    
+        const {email} = req.body;
+        if( email){
     //check if email exists
     User.find({email})
     .then((data) =>{
@@ -538,6 +533,12 @@ module.exports.requestPasswordResetByDigits = (req,res) => {
         })
     })
 
+    }else{
+        res.json({
+            status:"Failed",
+            message:"email n'existe pas."
+        })
+    }
 }
 const sendDigitsEmail = ({_id,email}, res) =>{
 
