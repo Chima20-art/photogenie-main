@@ -498,7 +498,8 @@ function generateRandomNumber() {
     return Math.floor(Math.random() * (maxm - minm + 1)) + minm
 }
 
-module.exports.requestPasswordResetByDigits = (req, res) => {
+// routes for reset password by email begin here
+module.exports.requestPasswordResetOtp = (req, res) => {
     const { email } = req.body
     if (email) {
         //check if email exists
@@ -683,7 +684,7 @@ module.exports.verifyEmailOtp = (req, res) => {
             })
         })
 }
-module.exports.resetPasswordByDigits = (req, res) => {
+module.exports.resetPasswordByOtp = (req, res) => {
     let { email, newPassword } = req.body // digits
     const saltRounds = 10
     User.find({ email })
@@ -784,6 +785,8 @@ module.exports.resetPasswordByDigits = (req, res) => {
             })
         })
 }
+// routes for reset password by email finish here
+
 
 module.exports.verify = (req, res) => {
     let { userId, verificationNumber } = req.body

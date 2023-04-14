@@ -1,6 +1,6 @@
 const express = require('express')
 const authRouter = express.Router()
-const { sendCode, verifyOtp, signup, signin, verifyEmail, requestPasswordReset, resetPassword,requestPasswordResetByDigits, resetPasswordByDigits,updateUserData,verifyEmailOtp } = require('../Controllers/userController')
+const { sendCode, verifyOtp, signup, signin, verifyEmail, requestPasswordReset, resetPassword,requestPasswordResetOtp,updateUserData,verifyEmailOtp, resetPasswordByOtp } = require('../Controllers/userController')
 const auth = require("../middlewares/auth");
 const { User } = require('../models/user')
 
@@ -42,6 +42,7 @@ authRouter.post("/tokenIsValid", async (req, res) => {
 authRouter.route('/api/sendCode').post(sendCode)
 authRouter.route('/api/verifyOtp').post(verifyOtp)
 
+
 authRouter.route('/api/signup').post(signup)
 
 
@@ -59,8 +60,8 @@ authRouter.get('/api/verified', (req, res) => {
 authRouter.post('/api/requestPasswordReset', requestPasswordReset)
 authRouter.post('/api/resetPassword', resetPassword)
 
-authRouter.post('/api/requestPasswordResetByDigits', requestPasswordResetByDigits)
-authRouter.post('/api/resetPasswordByDigits', resetPasswordByDigits)
+authRouter.post('/api/requestPasswordResetOtp', requestPasswordResetOtp)
+authRouter.post('/api/resetPasswordByOtp', resetPasswordByOtp)
 authRouter.post('/api/verifyEmailOtp', verifyEmailOtp)
 
 module.exports = authRouter
