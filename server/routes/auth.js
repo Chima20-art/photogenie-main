@@ -31,7 +31,7 @@ authRouter.post('/tokenIsValid', async (req, res) => {
             return res.json(false);
         }
 
-        const verified = jwt.verify(token, 'passwordKey');
+        const verified = jwt.verify(token, 'accessSecret');
 
         if (!verified) {
             return res.json(false);

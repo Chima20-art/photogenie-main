@@ -12,7 +12,7 @@ const auth = async (req, res, next) => {
         .status(401)
         .json({ msg: "No authentication token, authorization denied." });
 
-    const verified = jwt.verify(token, "passwordKey");
+    const verified = jwt.verify(token, "accessSecret");
 
     if (!verified) {
       return res
