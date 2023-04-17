@@ -5,6 +5,7 @@ const {
     verifyOtp,
     signup,
     signin,
+    refresh,
     verifyEmail,
     requestPasswordReset,
     resetPassword,
@@ -13,11 +14,14 @@ const {
     updateUserData,
     verifyEmailOtp,
     verifySignupOtp
+    
 } = require('../Controllers/userController');
 const auth = require('../middlewares/auth');
 const { User } = require('../models/user');
+const { isAuthenticated } = require("../middlewares/helper.js");
 
 const path = require('path');
+
 //validate token
 authRouter.post('/tokenIsValid', async (req, res) => {
     try {
@@ -44,18 +48,20 @@ authRouter.post('/tokenIsValid', async (req, res) => {
     }
 });
 
+
 //get user data
 authRouter.get('/', auth, async (req, res) => {
     const user = await User.findById(req.user);
     res.json({ ...user._doc, token: req.token });
 });
+authRouter.route('/api/signup').post(signup);
+authRouter.route('/api/signin').post(signin);
+
+authRouter.route('/api/refresh').post(refresh);
 
 authRouter.route('/api/sendCode').post(sendCode);
+
 authRouter.route('/api/verifyOtp').post(verifyOtp);
-
-authRouter.route('/api/signup').post(signup);
-
-authRouter.route('/api/signin').post(signin);
 
 authRouter.route('/api/verify/:userId/:uniqueString').get(verifyEmail);
 

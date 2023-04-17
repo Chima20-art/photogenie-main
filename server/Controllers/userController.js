@@ -6,13 +6,16 @@ var bcrypt = require('bcryptjs');
 const UserVerification = require('../models/UserVerification');
 const { User } = require('../models/user');
 const jwt = require('jsonwebtoken');
-var randtoken = require('rand-token');
-const refreshTockens = {};
 const nodemailer = require('nodemailer');
 var bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const PasswordReset = require('../models/PasswordReset');
 const EmailOtp = require('../models/emailOtp');
+const { verifyRefresh } = require("../middlewares/helper.js");
+
+
+
+
 
 module.exports.signup = (req, res) => {
     const message = {
@@ -88,28 +91,32 @@ module.exports.signup = (req, res) => {
 module.exports.signin = (req, res) => {
     const { email, password } = req.body;
 
-    User.find({ email })
+    User.findOne({ email })
         .then((data) => {
             if (data) {
-                const hashedPassword = data[0].password;
+                const hashedPassword = data.password;
                 bcrypt
                     .compare(password, hashedPassword)
                     .then((isMatch) => {
                         console.log(data);
                         if (isMatch) {
-                            const token = jwt.sign(
+                            const accessToken = jwt.sign(
                                 { id: data._id },
-                                'passwordKey',
-                                { expiresIn: 300 }
+                                'accessSecret',
+                                { expiresIn: "2m" }
                             );
-                            var refreshTocken = randtoken.uid(256);
-                            refreshTockens[refreshTocken] = email;
-                            const userData = data[0];
+                            const refreshToken = jwt.sign(
+                                { email:email },
+                                "refreshSecret",
+                                { expiresIn: "10m"}
+                                );
+                    
+                            const userData = data;
                             res.json({
                                 status: 'Success',
                                 message: 'signin successful',
-                                token: token,
-                                refreshTocken: refreshTocken,
+                                token: accessToken,
+                                refreshToken: refreshToken,
                                 userData
                             });
                         } else {
@@ -141,6 +148,25 @@ module.exports.signin = (req, res) => {
             });
         });
 };
+module.exports.refresh = (req,res) => {
+    const { email, refreshToken } = req.body;
+
+    const isValid = verifyRefresh(email, refreshToken);
+    console.log("refreshToken", refreshToken)
+    console.log("email", email)
+    console.log("isValid",isValid)
+    if (!isValid) {
+    return res
+    .status(401)
+    .json({ success: false, error: "Invalid token,try login again" });
+    }
+    const accessToken = jwt.sign({ email: email }, "accessSecret", {
+    expiresIn: "2m",
+    });
+    console.log(accessToken)
+    return res.status(200).json({ success: true, accessToken });
+   
+}
 
 //verify Email
 module.exports.verifyEmail = (req, res) => {
