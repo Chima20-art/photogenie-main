@@ -2,8 +2,6 @@
 const jwt = require('jsonwebtoken');
 
 function verifyRefresh(email, refreshToken) {
-console.log("email",email);
-console.log("refreshToken verifyRefresh",refreshToken)
   try {
     const decoded = jwt.verify(refreshToken, 'refreshSecret');
     if (decoded.email === email) {
@@ -16,7 +14,13 @@ console.log("refreshToken verifyRefresh",refreshToken)
   }
 }
 
+function generateRandomNumber() {
+    var minm = 100000;
+    var maxm = 999999;
+    return Math.floor(Math.random() * (maxm - minm + 1)) + minm;
+}
 module.exports = {
-  verifyRefresh,
+  verifyRefresh,generateRandomNumber
 };
+
 

@@ -11,7 +11,7 @@ var bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const PasswordReset = require('../models/PasswordReset');
 const EmailOtp = require('../models/emailOtp');
-const { verifyRefresh } = require("../middlewares/helper.js");
+const { verifyRefresh,generateRandomNumber} = require("../middlewares/helper.js");
 
 
 
@@ -148,13 +148,11 @@ module.exports.signin = (req, res) => {
             });
         });
 };
+
+//refresh Token
 module.exports.refresh = (req,res) => {
     const { email, refreshToken } = req.body;
-
     const isValid = verifyRefresh(email, refreshToken);
-    console.log("refreshToken", refreshToken)
-    console.log("email", email)
-    console.log("isValid",isValid)
     if (!isValid) {
     return res
     .status(401)
@@ -530,11 +528,7 @@ const sendResetEmail = ({ _id, email }, res) => {
         });
 };
 
-function generateRandomNumber() {
-    var minm = 100000;
-    var maxm = 999999;
-    return Math.floor(Math.random() * (maxm - minm + 1)) + minm;
-}
+
 
 module.exports.requestPasswordResetByDigits = (req, res) => {
     const message = {
