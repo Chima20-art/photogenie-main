@@ -6,6 +6,7 @@ const {
     signup,
     signin,
     refresh,
+    tokenIsValid,
     verifyEmail,
     requestPasswordReset,
     resetPassword,
@@ -19,71 +20,60 @@ const {
 } = require('../Controllers/userController');
 const auth = require('../middlewares/auth');
 const { User } = require('../models/user');
-const { isAuthenticated } = require("../middlewares/helper.js");
-
 const path = require('path');
 
+//Main routes 
 //validate token
-authRouter.post('/tokenIsValid', async (req, res) => {
-    try {
-        const token = req.header('x-auth-token');
-        if (!token) {
-            return res.json(false);
-        }
-
-        const verified = jwt.verify(token, 'accessSecret');
-
-        if (!verified) {
-            return res.json(false);
-        }
-
-        const user = await User.findById(verified.id);
-
-        if (!user) {
-            return res.json(false);
-        } else {
-            return res.json(true);
-        }
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
-
+authRouter.route('/tokenIsValid').post(tokenIsValid)
 
 //get user data
 authRouter.get('/', auth, async (req, res) => {
     const user = await User.findById(req.user);
     res.json({ ...user._doc, token: req.token });
 });
+
+//singnup
 authRouter.route('/api/signup').post(signup);
+
+//verifySignupOtp
+authRouter.post('/api/verifySignupOtp', verifySignupOtp);
+
+//verifySignupOtp
 authRouter.route('/api/signin').post(signin);
-authRouter.route('/api/signout').post(signout);
 
-
+//refresh
 authRouter.route('/api/refresh').post(refresh);
 
-authRouter.route('/api/sendCode').post(sendCode);
+//signout
+authRouter.route('/api/signout').post(signout);
 
-authRouter.route('/api/verifyOtp').post(verifyOtp);
-
-authRouter.route('/api/verify/:userId/:uniqueString').get(verifyEmail);
-
+//updateUserData
 authRouter.route('/api/updateUserData').post(updateUserData);
 
-//verified email page route
-authRouter.get('/api/verified', (req, res) => {
-    res.sendFile(path.join(__dirname, '../views/verified.html'));
-});
-
-authRouter.post('/api/requestPasswordReset', requestPasswordReset);
-authRouter.post('/api/resetPassword', resetPassword);
-
+//requestPasswordResetByDigits
 authRouter.post(
-    '/api/requestPasswordResetByDigits',
+  '/api/requestPasswordResetByDigits',
     requestPasswordResetByDigits
 );
+
+//verifyEmail
+authRouter.route('/api/verify/:userId/:uniqueString').get(verifyEmail);
+
+//resetPasswordByDigits
 authRouter.post('/api/resetPasswordByDigits', resetPasswordByDigits);
+
+//verifyEmailOtp
 authRouter.post('/api/verifyEmailOtp', verifyEmailOtp);
-authRouter.post('/api/verifySignupOtp', verifySignupOtp);
+
+
+
+//test routes 
+//authRouter.route('/api/sendCode').post(sendCode);
+//authRouter.route('/api/verifyOtp').post(verifyOtp);
+//authRouter.get('/api/verified', (req, res) => {
+//   res.sendFile(path.join(__dirname, '../views/verified.html'));
+// });
+// authRouter.post('/api/requestPasswordReset', requestPasswordReset);
+// authRouter.post('/api/resetPassword', resetPassword);
 
 module.exports = authRouter;
