@@ -1,24 +1,26 @@
-require('dotenv').config();
-const _ = require('lodash');
-const otpGenerator = require('otp-generator');
-const { Otp } = require('../models/otpModel');
-var bcrypt = require('bcryptjs');
-const UserVerification = require('../models/UserVerification');
-const { User } = require('../models/user');
-const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
-var bcrypt = require('bcryptjs');
-const { v4: uuidv4 } = require('uuid');
-const PasswordReset = require('../models/PasswordReset');
-const EmailOtp = require('../models/emailOtp');
-const { verifyRefresh,generateRandomNumber} = require("../middlewares/helper.js");
-
+require('dotenv').config()
+const _ = require('lodash')
+const otpGenerator = require('otp-generator')
+const { Otp } = require('../models/otpModel')
+var bcrypt = require('bcryptjs')
+const UserVerification = require('../models/UserVerification')
+const { User } = require('../models/user')
+const jwt = require('jsonwebtoken')
+const nodemailer = require('nodemailer')
+var bcrypt = require('bcryptjs')
+const { v4: uuidv4 } = require('uuid')
+const PasswordReset = require('../models/PasswordReset')
+const EmailOtp = require('../models/emailOtp')
+const {
+    verifyRefresh,
+    generateRandomNumber,
+} = require('../middlewares/helper.js')
 
 module.exports.signup = (req, res) => {
     const message = {
         subject: 'Signup verification',
-        text: 'Use the Code below to rverify your email'
-    };
+        text: 'Use the Code below to rverify your email',
+    }
     const {
         name,
         lastname,
@@ -27,8 +29,8 @@ module.exports.signup = (req, res) => {
         birthday,
         username,
         number,
-        country
-    } = req.body;
+        country,
+    } = req.body
 
     if (
         (name, lastname, email, password, birthday, username, number, country)
@@ -37,8 +39,8 @@ module.exports.signup = (req, res) => {
             if (existinguser) {
                 res.json({
                     status: 'Failed',
-                    message: 'Email already exists'
-                });
+                    message: 'Email already exists',
+                })
             } else {
                 bcrypt
                     .hash(password, 8)
@@ -52,171 +54,202 @@ module.exports.signup = (req, res) => {
                             username,
                             number,
                             country,
-                            verified: false
-                        });
+                            verified: false,
+                        })
                         user.save()
                             .then((result) => {
-                                console.log('user saved to db');
+                                console.log('user saved to db')
 
-                                sendSignupOtp(result, message, res);
+                                sendSignupOtp(result, message, res)
                             })
                             .catch((err) => {
-                                console.log(err);
+                                console.log(err)
                                 res.json({
                                     status: 'Failed',
                                     message:
-                                        'An error occured while saving user account'
-                                });
-                            });
+                                        'An error occured while saving user account',
+                                })
+                            })
                     })
                     .catch((err) => {
                         res.json({
                             status: 'Failed',
-                            message: 'An error occured while hashing password'
-                        });
-                    });
+                            message: 'An error occured while hashing password',
+                        })
+                    })
             }
-        });
+        })
     } else {
         res.json({
             status: 'Failed',
-            message: 'Please fill all fields'
-        });
+            message: 'Please fill all fields',
+        })
     }
-};
+}
+
+module.exports.getRefreshToken = (req, res) => {
+    const token = req.header('x-auth-token')
+    if (!token)
+        return res
+            .status(401)
+            .json({ msg: 'No authentication token, authorization denied.' })
+
+    const verified = jwt.verify(token, 'accessSecret')
+    if (verified) {
+        const email = verified.email
+
+        const refreshToken = jwt.sign({ email: email }, 'refreshSecret', {
+            expiresIn: '10m',
+        })
+
+        return res.status(200).json({ refreshToken })
+    } else {
+        return res
+            .status(401)
+            .json({ msg: 'Token verification failed, authorization denied.' })
+    }
+}
 
 module.exports.signin = (req, res) => {
-    const { email, password } = req.body;
+    const { email, password } = req.body
 
     User.findOne({ email })
         .then((data) => {
             if (data) {
-                const hashedPassword = data.password;
+                const hashedPassword = data.password
                 bcrypt
                     .compare(password, hashedPassword)
                     .then((isMatch) => {
-                        console.log(data);
+                        console.log(data)
                         if (isMatch) {
                             const accessToken = jwt.sign(
-                                { id: data._id },
+                                { id: data._id, email: data.email },
                                 'accessSecret',
-                                { expiresIn: "2m" }
-                            );
-                            const refreshToken = jwt.sign(
-                                { email:email },
-                                "refreshSecret",
-                                { expiresIn: "10m"}
-                                );
-                    
-                            const userData = data;
+                                { expiresIn: '2m' }
+                            )
+                            // const refreshToken = jwt.sign(
+                            //     { email:email },
+                            //     "refreshSecret",
+                            //     { expiresIn: "10m"}
+                            //     );
+
+                            const userData = data
                             res.json({
                                 status: 'Success',
                                 message: 'signin successful',
                                 token: accessToken,
-                                refreshToken: refreshToken,
-                                userData
-                            });
+                                //refreshToken: refreshToken,
+                                userData,
+                            })
                         } else {
                             res.json({
                                 status: 'Failed',
-                                message: 'Incorrect password'
-                            });
+                                message: 'Incorrect password',
+                            })
                         }
                     })
                     .catch((error) => {
-                        console.log(error);
+                        console.log(error)
                         res.json({
                             status: 'Failed',
                             message:
-                                'An error occured while comparing passwords'
-                        });
-                    });
+                                'An error occured while comparing passwords',
+                        })
+                    })
             } else {
                 res.json({
                     status: 'Failed',
-                    message: 'Invalid credentials entered!'
-                });
+                    message: 'Invalid credentials entered!',
+                })
             }
         })
         .catch((error) => {
             res.json({
                 status: 'Failed',
-                message: 'Invalid credentials '
-            });
-        });
-};
+                message: 'Invalid credentials ',
+            })
+        })
+}
 
 //signout
 module.exports.signout = (req, res) => {
-    const { email, refreshToken } = req.body;
-  
+    const { email, refreshToken } = req.body
+
     try {
-      const isValid = verifyRefresh(email, refreshToken);
-  
-      if (isValid) {
-        // Remove refresh token from response body of sign-in endpoint
-        const userData = { ...req.body.userData };
-        delete userData.refreshToken;
-  
-        res.status(200).json({ success: true, message: "Signout successful" });
-      } else {
-        res.status(401).json({ success: false, message: "Invalid token, signout failed" });
-      }
+        const isValid = verifyRefresh(email, refreshToken)
+
+        if (isValid) {
+            // Remove refresh token from response body of sign-in endpoint
+            const userData = { ...req.body.userData }
+            delete userData.refreshToken
+
+            res.status(200).json({
+                success: true,
+                message: 'Signout successful',
+            })
+        } else {
+            res.status(401).json({
+                success: false,
+                message: 'Invalid token, signout failed',
+            })
+        }
     } catch (err) {
-      console.log(err);
-      res.status(500).json({ success: false, message: "An error occurred during signout" });
+        console.log(err)
+        res.status(500).json({
+            success: false,
+            message: 'An error occurred during signout',
+        })
     }
-  };
+}
 //refresh Token
-module.exports.refresh = (req,res) => {
-    const { email, refreshToken } = req.body;
-    const isValid = verifyRefresh(email, refreshToken);
+module.exports.refresh = (req, res) => {
+    const { email, refreshToken } = req.body
+    const isValid = verifyRefresh(email, refreshToken)
     if (!isValid) {
-    return res
-    .status(401)
-    .json({ success: false, error: "Invalid token,try login again" });
+        return res
+            .status(401)
+            .json({ success: false, error: 'Invalid token,try login again' })
     }
-    const accessToken = jwt.sign({ email: email }, "accessSecret", {
-    expiresIn: "2m",
-    });
+    const accessToken = jwt.sign({ email: email }, 'accessSecret', {
+        expiresIn: '2m',
+    })
     console.log(accessToken)
-    return res.status(200).json({ success: true, accessToken });
-   
+    return res.status(200).json({ success: true, accessToken })
 }
 
 module.exports.tokenIsValid = async (req, res) => {
     try {
-        const token = req.header('x-auth-token');
+        const token = req.header('x-auth-token')
         if (!token) {
-            return res.json(false);
+            return res.json(false)
         }
 
-        const verified = jwt.verify(token, 'accessSecret');
+        const verified = jwt.verify(token, 'accessSecret')
 
         if (!verified) {
-            return res.json(false);
+            return res.json(false)
         }
 
-        const user = await User.findById(verified.id);
+        const user = await User.findById(verified.id)
 
         if (!user) {
-            return res.json(false);
+            return res.json(false)
         } else {
-            return res.json(true);
+            return res.json(true)
         }
     } catch (e) {
-        res.status(500).json({ error: e.message });
+        res.status(500).json({ error: e.message })
     }
 }
 //verify Email
 module.exports.verifyEmail = (req, res) => {
-    let { userId, uniqueString } = req.params;
+    let { userId, uniqueString } = req.params
     UserVerification.find({ userId })
         .then((result) => {
             if (result.length > 0) {
                 //user verification record exists so we proceed
-                const { expiresAt } = result[0];
-                const hashedUniqueString = result[0].uniqueString;
+                const { expiresAt } = result[0]
+                const hashedUniqueString = result[0].uniqueString
 
                 if (expiresAt < Date.now()) {
                     //record has expired so we delete it
@@ -225,27 +258,27 @@ module.exports.verifyEmail = (req, res) => {
                             User.deleteOne({ id: userId })
                                 .then(() => {
                                     let message =
-                                        'Link has expired, please sign up again';
+                                        'Link has expired, please sign up again'
                                     res.redirect(
                                         `/api/verified?error=true&message=${message}`
-                                    );
+                                    )
                                 })
                                 .catch((error) => {
                                     let message =
-                                        'Clearing user eith expired unique string failed ';
+                                        'Clearing user eith expired unique string failed '
                                     res.redirect(
                                         `/api/verified?error=true&message=${message}`
-                                    );
-                                });
+                                    )
+                                })
                         })
                         .catch((error) => {
-                            console.log(error);
+                            console.log(error)
                             let message =
-                                ' An error occured while clearing expired user verification record';
+                                ' An error occured while clearing expired user verification record'
                             res.redirect(
                                 `/api/verified?error=true&message=${message}`
-                            );
-                        });
+                            )
+                        })
                 } else {
                     //valid record exists so we validate the user string
                     //compare first
@@ -260,59 +293,59 @@ module.exports.verifyEmail = (req, res) => {
                                 )
                                     .then(() => {
                                         UserVerification.deleteOne({
-                                            userId
+                                            userId,
                                         }).then(() => {
-                                            let message = 'Email Verified';
+                                            let message = 'Email Verified'
                                             let deeplink =
-                                                'http://localhost:3000';
+                                                'http://localhost:3000'
                                             res.redirect(
                                                 `/api/verified?message=${message}&link=${deeplink}`
-                                            );
-                                        });
+                                            )
+                                        })
                                     })
                                     .catch((error) => {
                                         let message =
-                                            'an error occured while updating user record to show verified ';
+                                            'an error occured while updating user record to show verified '
                                         res.redirect(
                                             `/api/verified?error=true&message=${message}`
-                                        );
-                                    });
+                                        )
+                                    })
                             } else {
                                 //existing record but incorrect verification details passed
                                 let message =
-                                    'Invalid verification details passed. Check your inbox';
+                                    'Invalid verification details passed. Check your inbox'
                                 res.redirect(
                                     `/api/verified?error=true&message=${message}`
-                                );
+                                )
                             }
                         })
                         .catch((error) => {
                             let message =
-                                'an error occured while comparing unique strings  ';
+                                'an error occured while comparing unique strings  '
                             res.redirect(
                                 `/api/verified?error=true&message=${message}`
-                            );
-                        });
+                            )
+                        })
                 }
             } else {
                 //user verification record does't exist
                 let message =
-                    "Account record does't exist or has been verified already ";
-                res.redirect(`/api/verified?error=true&message=${message}`);
+                    "Account record does't exist or has been verified already "
+                res.redirect(`/api/verified?error=true&message=${message}`)
             }
         })
         .catch((error) => {
-            console.log(error);
-            let message = ' An error occured while checking existing...';
-            res.redirect(`/api/verified?error=true&message=${message}`);
-        });
-};
+            console.log(error)
+            let message = ' An error occured while checking existing...'
+            res.redirect(`/api/verified?error=true&message=${message}`)
+        })
+}
 module.exports.requestPasswordResetByDigits = (req, res) => {
     const message = {
         subject: 'Reset Password',
-        text: 'Use the Code below to reset password'
-    };
-    const { email } = req.body;
+        text: 'Use the Code below to reset password',
+    }
+    const { email } = req.body
     if (email) {
         //check if email exists
         User.findOne({ email })
@@ -324,40 +357,40 @@ module.exports.requestPasswordResetByDigits = (req, res) => {
                             {
                                 status: 'Failed',
                                 message:
-                                    "Email hasn't  been verified yet. Check your inbox"
+                                    "Email hasn't  been verified yet. Check your inbox",
                             },
                             400
-                        );
+                        )
                     } else {
                         //send verification Email
-                        console.log(res);
-                        sendDigitsEmail(data, message, res);
+                        console.log(res)
+                        sendDigitsEmail(data, message, res)
                     }
                 } else {
                     res.json({
                         status: 'Failed',
-                        message: 'No account with the supplied email exists'
-                    });
+                        message: 'No account with the supplied email exists',
+                    })
                 }
             })
             .catch((erorr) => {
-                console.log(erorr);
+                console.log(erorr)
                 res.json({
                     status: 'Failed',
                     message:
-                        'An error occuured while checking for existing user'
-                });
-            });
+                        'An error occuured while checking for existing user',
+                })
+            })
     } else {
         res.json({
             status: 'Failed',
-            message: "email n'existe pas."
-        });
+            message: "email n'existe pas.",
+        })
     }
-};
+}
 const sendDigitsEmail = ({ _id, email }, message, res) => {
-    let verificationNumber = generateRandomNumber();
-    console.log('verificationNumber', verificationNumber);
+    let verificationNumber = generateRandomNumber()
+    console.log('verificationNumber', verificationNumber)
 
     //clear all reset existing records
 
@@ -370,21 +403,21 @@ const sendDigitsEmail = ({ _id, email }, message, res) => {
                 to: email,
                 subject: `${message.subject}`,
                 html: `<p>${message.text} </p>
-        <p><b>${verificationNumber}</b></p>`
-            };
+        <p><b>${verificationNumber}</b></p>`,
+            }
 
-            const saltRounds = 10;
+            const saltRounds = 10
             bcrypt
                 .hash(verificationNumber.toString(), saltRounds)
                 .then((hashedResetString) => {
-                    console.log(hashedResetString);
+                    console.log(hashedResetString)
                     const newPasswordReset = new PasswordReset({
                         userId: _id,
                         resetString: hashedResetString,
                         createdAt: Date.now(),
                         expiresAt: Date.now() + 36000000,
-                        verified: false
-                    });
+                        verified: false,
+                    })
                     newPasswordReset
                         .save()
                         .then(() => {
@@ -393,45 +426,45 @@ const sendDigitsEmail = ({ _id, email }, message, res) => {
                                 .then(() => {
                                     res.json({
                                         status: 'PENDING',
-                                        message: 'Password reset email sent!'
-                                    });
+                                        message: 'Password reset email sent!',
+                                    })
                                 })
                                 .catch((error) => {
-                                    console.log(error);
+                                    console.log(error)
                                     res.json({
                                         status: 'Failed',
-                                        message: 'Password reset email failed'
-                                    });
-                                });
+                                        message: 'Password reset email failed',
+                                    })
+                                })
                         })
                         .catch((error) => {
-                            console.log(error);
+                            console.log(error)
                             res.json({
                                 status: 'Failed',
-                                message: "Couldn't save password reset data!"
-                            });
-                        });
+                                message: "Couldn't save password reset data!",
+                            })
+                        })
                 })
                 .catch((error) => {
-                    console.log(error);
+                    console.log(error)
                     res.json({
                         status: 'Failed',
                         message:
-                            'An error occured while hashing the password reset data!'
-                    });
-                });
+                            'An error occured while hashing the password reset data!',
+                    })
+                })
         })
         .catch((error) => {
-            console.log(error);
+            console.log(error)
             res.json({
                 status: 'Failed',
-                message: 'Error occured while clearing existing reset records'
-            });
-        });
-};
+                message: 'Error occured while clearing existing reset records',
+            })
+        })
+}
 const sendSignupOtp = ({ _id, email }, message, res) => {
-    let verificationNumber = generateRandomNumber();
-    console.log('verificationNumber', verificationNumber);
+    let verificationNumber = generateRandomNumber()
+    console.log('verificationNumber', verificationNumber)
 
     //clear all reset existing records
 
@@ -444,21 +477,21 @@ const sendSignupOtp = ({ _id, email }, message, res) => {
                 to: email,
                 subject: `${message.subject}`,
                 html: `<p>${message.text} </p>
-        <p><b>${verificationNumber}</b></p>`
-            };
+        <p><b>${verificationNumber}</b></p>`,
+            }
 
-            const saltRounds = 10;
+            const saltRounds = 10
             bcrypt
                 .hash(verificationNumber.toString(), saltRounds)
                 .then((hashedResetString) => {
-                    console.log(hashedResetString);
+                    console.log(hashedResetString)
                     const newEmailOtp = new EmailOtp({
                         userId: _id,
                         resetString: hashedResetString,
                         createdAt: Date.now(),
                         expiresAt: Date.now() + 36000000,
-                        verified: false
-                    });
+                        verified: false,
+                    })
                     newEmailOtp
                         .save()
                         .then(() => {
@@ -467,56 +500,56 @@ const sendSignupOtp = ({ _id, email }, message, res) => {
                                 .then(() => {
                                     res.json({
                                         status: 'PENDING',
-                                        message: 'Password reset email sent!'
-                                    });
+                                        message: 'Password reset email sent!',
+                                    })
                                 })
                                 .catch((error) => {
-                                    console.log(error);
+                                    console.log(error)
                                     res.json({
                                         status: 'Failed',
-                                        message: 'Password reset email failed'
-                                    });
-                                });
+                                        message: 'Password reset email failed',
+                                    })
+                                })
                         })
                         .catch((error) => {
-                            console.log(error);
+                            console.log(error)
                             res.json({
                                 status: 'Failed',
-                                message: "Couldn't save password reset data!"
-                            });
-                        });
+                                message: "Couldn't save password reset data!",
+                            })
+                        })
                 })
                 .catch((error) => {
-                    console.log(error);
+                    console.log(error)
                     res.json({
                         status: 'Failed',
                         message:
-                            'An error occured while hashing the password reset data!'
-                    });
-                });
+                            'An error occured while hashing the password reset data!',
+                    })
+                })
         })
         .catch((error) => {
-            console.log(error);
+            console.log(error)
             res.json({
                 status: 'Failed',
-                message: 'Error occured while clearing existing reset records'
-            });
-        });
-};
+                message: 'Error occured while clearing existing reset records',
+            })
+        })
+}
 module.exports.verifySignupOtp = (req, res) => {
-    let { email, otp } = req.body;
+    let { email, otp } = req.body
     User.findOne({ email })
         .then((data) => {
             if (data) {
                 //console.log(data)
                 EmailOtp.findOne({ userId: data._id })
                     .then((emailOtpRecord) => {
-                        console.log(emailOtpRecord);
+                        console.log(emailOtpRecord)
 
                         bcrypt
                             .compare(otp, emailOtpRecord.resetString)
                             .then((result) => {
-                                console.log('result', result);
+                                console.log('result', result)
                                 if (result) {
                                     User.updateOne(
                                         { email },
@@ -526,70 +559,71 @@ module.exports.verifySignupOtp = (req, res) => {
                                             res.json({
                                                 status: 'Success',
                                                 message:
-                                                    'Otp verified successfuly.'
-                                            });
+                                                    'Otp verified successfuly.',
+                                            })
                                         })
                                         .catch((error) => {
-                                            console.log(error);
+                                            console.log(error)
                                             res.json({
                                                 status: 'Failed',
                                                 message:
-                                                    'An error occured while updating PasswordReset.'
-                                            });
-                                        });
+                                                    'An error occured while updating PasswordReset.',
+                                            })
+                                        })
                                 } else {
                                     res.json({
                                         status: 'Failed',
-                                        message: 'Otp does not match!'
-                                    });
+                                        message: 'Otp does not match!',
+                                    })
                                 }
                             })
                             .catch((error) => {
-                                console.log(error);
+                                console.log(error)
                                 res.json({
                                     status: 'Failed',
                                     message:
-                                        'An error occured while comparing otp.'
-                                });
-                            });
+                                        'An error occured while comparing otp.',
+                                })
+                            })
                     })
                     .catch((error) => {
-                        console.log(error);
+                        console.log(error)
                         res.json({
                             status: 'Failed',
                             message:
-                                'An error occured while trying to find PasswordReset.'
-                        });
-                    });
+                                'An error occured while trying to find PasswordReset.',
+                        })
+                    })
             } else {
                 res.json({
                     status: 'Failed',
-                    message: 'User is not in db.'
-                });
+                    message: 'User is not in db.',
+                })
             }
         })
         .catch((error) => {
-            console.log(error);
+            console.log(error)
             res.json({
                 status: 'Failed',
-                message: 'An error occured while trying to find the user in db.'
-            });
-        });
-};
+                message:
+                    'An error occured while trying to find the user in db.',
+            })
+        })
+}
 module.exports.verifyEmailOtp = (req, res) => {
-    let { email, otp } = req.body;
+    let { email, otp } = req.body
     User.find({ email })
         .then((data) => {
             if (data.length > 0) {
                 //console.log(data)
                 PasswordReset.findOne({ userId: data[0]._id })
                     .then((passwordResetRecord) => {
-                        console.log(passwordResetRecord);
+                        console.log(passwordResetRecord)
 
                         bcrypt
                             .compare(otp, passwordResetRecord.resetString)
                             .then((result) => {
-                                console.log('result', result);
+                                console.log('result', result)
                                 if (result) {
                                     PasswordReset.updateOne(
                                         { userId: data[0]._id },
@@ -600,60 +634,61 @@ module.exports.verifyEmailOtp = (req, res) => {
                                             res.json({
                                                 status: 'Success',
                                                 message:
-                                                    'Otp verified successfuly.'
-                                            });
+                                                    'Otp verified successfuly.',
+                                            })
                                         })
                                         .catch((error) => {
-                                            console.log(error);
+                                            console.log(error)
                                             res.json({
                                                 status: 'Failed',
                                                 message:
-                                                    'An error occured while updating PasswordReset.'
-                                            });
-                                        });
+                                                    'An error occured while updating PasswordReset.',
+                                            })
+                                        })
                                 } else {
                                     res.json({
                                         status: 'Failed',
-                                        message: 'Otp does not match!'
-                                    });
+                                        message: 'Otp does not match!',
+                                    })
                                 }
                             })
                             .catch((error) => {
-                                console.log(error);
+                                console.log(error)
                                 res.json({
                                     status: 'Failed',
                                     message:
-                                        'An error occured while comparing otp.'
-                                });
-                            });
+                                        'An error occured while comparing otp.',
+                                })
+                            })
                     })
                     .catch((error) => {
-                        console.log(error);
+                        console.log(error)
                         res.json({
                             status: 'Failed',
                             message:
-                                'An error occured while trying to find PasswordReset.'
-                        });
-                    });
+                                'An error occured while trying to find PasswordReset.',
+                        })
+                    })
             } else {
                 res.json({
                     status: 'Failed',
-                    message: 'User is not in db.'
-                });
+                    message: 'User is not in db.',
+                })
             }
         })
         .catch((error) => {
-            console.log(error);
+            console.log(error)
             res.json({
                 status: 'Failed',
-                message: 'An error occured while trying to find the user in db.'
-            });
-        });
-};
+                message:
+                    'An error occured while trying to find the user in db.',
+            })
+        })
+}
 module.exports.resetPasswordByDigits = (req, res) => {
-    let { email, newPassword } = req.body;
+    let { email, newPassword } = req.body
     if (newPassword) {
-        const saltRounds = 10;
+        const saltRounds = 10
         User.find({ email })
             .then((data) => {
                 if (data.length > 0) {
@@ -673,7 +708,7 @@ module.exports.resetPasswordByDigits = (req, res) => {
                                                     { email: email },
                                                     {
                                                         password:
-                                                            hashedNewPassword
+                                                            hashedNewPassword,
                                                     }
                                                 )
                                                     .then(() => {
@@ -681,113 +716,114 @@ module.exports.resetPasswordByDigits = (req, res) => {
                                                         PasswordReset.deleteMany(
                                                             {
                                                                 userId: data[0]
-                                                                    ._id
+                                                                    ._id,
                                                             }
                                                         )
                                                             .then(() => {
                                                                 res.json({
                                                                     status: 'Success',
                                                                     message:
-                                                                        'Password has been reset successfully.'
-                                                                });
+                                                                        'Password has been reset successfully.',
+                                                                })
                                                             })
                                                             .catch((error) => {
                                                                 res.json({
                                                                     status: 'Failed',
                                                                     message:
-                                                                        'An error occured while finalizing password rest.'
-                                                                });
-                                                            });
+                                                                        'An error occured while finalizing password rest.',
+                                                                })
+                                                            })
                                                     })
                                                     .catch((error) => {
-                                                        console.log(error);
+                                                        console.log(error)
                                                         res.json({
                                                             status: 'Failed',
                                                             message:
-                                                                'An error occured while trying to find user in db.'
-                                                        });
-                                                    });
+                                                                'An error occured while trying to find user in db.',
+                                                        })
+                                                    })
                                             })
                                             .catch((error) => {
-                                                console.log(error);
+                                                console.log(error)
                                                 res.json({
                                                     status: 'Failed',
                                                     message:
-                                                        'An error occured while hashing newPassword.'
-                                                });
-                                            });
+                                                        'An error occured while hashing newPassword.',
+                                                })
+                                            })
                                     } else {
                                         res.json({
                                             status: 'Failed',
                                             message:
-                                                'passwoedResetRecord expired.'
-                                        });
+                                                'passwoedResetRecord expired.',
+                                        })
                                     }
                                 } else {
                                     res.json({
                                         status: 'Failed',
-                                        message: 'otp not verified.'
-                                    });
+                                        message: 'otp not verified.',
+                                    })
                                 }
                             } else {
                                 res.json({
                                     status: 'Failed',
-                                    message: 'passwordResetRecord not found.'
-                                });
+                                    message: 'passwordResetRecord not found.',
+                                })
                             }
                         })
                         .catch((error) => {
-                            console.log(error);
+                            console.log(error)
                             res.json({
                                 status: 'Failed',
                                 message:
-                                    'An error occured while trying to find PasswordReset.'
-                            });
-                        });
+                                    'An error occured while trying to find PasswordReset.',
+                            })
+                        })
                 } else {
                     res.json({
                         status: 'Failed',
-                        message: 'User is not in db.'
-                    });
+                        message: 'User is not in db.',
+                    })
                 }
             })
             .catch((error) => {
-                console.log(error);
+                console.log(error)
                 res.json({
                     status: 'Failed',
                     message:
-                        'An error occured while trying to find the user in db.'
-                });
-            });
+                        'An error occured while trying to find the user in db.',
+                })
+            })
     } else {
         res.json({
             status: 'Failed',
-            message: "Can't find newPassword."
-        });
+            message: "Can't find newPassword.",
+        })
     }
-};
+}
 
 module.exports.verify = (req, res) => {
-    let { userId, verificationNumber } = req.body;
+    let { userId, verificationNumber } = req.body
     PasswordReset.find({ userId })
         .then((result) => {
             if (result.length > 0) {
-                const { expiresAt } = result[0];
-                const hashedVerificationNumber = result[0].resetString;
+                const { expiresAt } = result[0]
+                const hashedVerificationNumber = result[0].resetString
                 if (expiresAt < Date.now()) {
                     PasswordReset.deleteOne({ userId })
                         .then(() => {
                             res.json({
                                 status: 'Failed',
-                                message: 'Password reset link has expired.'
-                            });
+                                message: 'Password reset link has expired.',
+                            })
                         })
                         .catch((error) => {
                             res.json({
                                 status: 'Failed',
-                                message: 'Clearing password reset record failed'
-                            });
-                        });
+                                message:
+                                    'Clearing password reset record failed',
+                            })
+                        })
                 } else {
                     bcrypt
                         .compare(verificationNumber, hashedVerificationNumber)
@@ -795,95 +831,87 @@ module.exports.verify = (req, res) => {
                             if (result) {
                                 res.json({
                                     status: 'SUCCESS',
-                                    message: 'verification number match!.'
-                                });
+                                    message: 'verification number match!.',
+                                })
                             } else {
                                 res.json({
                                     status: 'Failed',
                                     message:
-                                        'Invalid password reset details passed'
-                                });
+                                        'Invalid password reset details passed',
+                                })
                             }
                         })
                         .catch((error) => {
-                            console.log(error);
+                            console.log(error)
                             res.json({
                                 status: 'Failed',
                                 message:
-                                    'Comparing password reset strings failed.'
-                            });
-                        });
+                                    'Comparing password reset strings failed.',
+                            })
+                        })
                 }
             } else {
                 // Password reset record does'nt exist
                 res.json({
                     status: 'Failed',
-                    message: 'Password reset record request not found'
-                });
+                    message: 'Password reset record request not found',
+                })
             }
         })
         .catch((error) => {
-            console.log(error);
+            console.log(error)
             res.json({
                 status: 'Failed',
-                message: 'Checking for existing password reset record failed'
-            });
-        });
-};
+                message: 'Checking for existing password reset record failed',
+            })
+        })
+}
 
 module.exports.updateUserData = (req, res) => {
-    let { id, name, lastname, birthday } = req.body;
+    let { id, name, lastname, birthday } = req.body
     User.findById(id)
         .then((result) => {
             User.updateOne({ _id: id }, { name, lastname, birthday })
                 .then(() => {
                     res.json({
                         status: 'SUCCESS',
-                        message: 'user Data has been updated has been updated.'
-                    });
+                        message: 'user Data has been updated has been updated.',
+                    })
                 })
                 .catch((error) => {
-                    console.log(error);
+                    console.log(error)
                     res.json({
                         status: 'Failed',
-                        message: 'An error occured while updating user name.'
-                    });
-                });
+                        message: 'An error occured while updating user name.',
+                    })
+                })
         })
         .catch((error) => {
-            console.log(error);
+            console.log(error)
             res.json({
                 status: 'Failed',
-                message: 'An error occured while trying to findUserById.'
-            });
-        });
-};
+                message: 'An error occured while trying to findUserById.',
+            })
+        })
+}
 
 let transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: process.env.GMAIL_USER,
-        pass: process.env.PASSWORD
+        pass: process.env.PASSWORD,
     },
-    secure: true
-});
+    secure: true,
+})
 
 transporter.verify((error, success) => {
     if (error) {
-        console.log(error);
+        console.log(error)
     } else {
-        console.log('Ready for message');
-        console.log(success);
+        console.log('Ready for message')
+        console.log(success)
     }
-});
-
-
-
-
-
-
-
-
+})
 
 // module.exports.sendCode = async (req, res) => {
 //     const user = await User.findOne({
