@@ -1,21 +1,8 @@
-const express = require('express');
-const authRouter = express.Router();
-const {
-    sendCode,
-    verifyOtp,
-    signup,
-    signin,
-    verifyEmail,
-    requestPasswordReset,
-    resetPassword,
-    requestPasswordResetByDigits,
-    resetPasswordByDigits,
-    updateUserData,
-    verifyEmailOtp,
-    verifySignupOtp
-} = require('../Controllers/userController');
-const auth = require('../middlewares/auth');
-const { User } = require('../models/user');
+const express = require('express')
+const authRouter = express.Router()
+const { sendCode, verifyOtp, signup, signin, verifyEmail, requestPasswordReset, resetPassword,requestPasswordResetByDigits, resetPasswordByDigits,updateUserData,verifyEmailOtp } = require('../Controllers/userController')
+const auth = require("../middlewares/auth");
+const { User } = require('../models/user')
 
 const path = require('path');
 //validate token
@@ -50,8 +37,8 @@ authRouter.get('/', auth, async (req, res) => {
     res.json({ ...user._doc, token: req.token });
 });
 
-authRouter.route('/api/sendCode').post(sendCode);
-authRouter.route('/api/verifyOtp').post(verifyOtp);
+authRouter.route('/api/sendCode').post(sendCode)
+authRouter.route('/api/verifyOtp').post(verifyOtp)
 
 authRouter.route('/api/signup').post(signup);
 
@@ -69,12 +56,8 @@ authRouter.get('/api/verified', (req, res) => {
 authRouter.post('/api/requestPasswordReset', requestPasswordReset);
 authRouter.post('/api/resetPassword', resetPassword);
 
-authRouter.post(
-    '/api/requestPasswordResetByDigits',
-    requestPasswordResetByDigits
-);
-authRouter.post('/api/resetPasswordByDigits', resetPasswordByDigits);
-authRouter.post('/api/verifyEmailOtp', verifyEmailOtp);
-authRouter.post('/api/verifySignupOtp', verifySignupOtp);
+authRouter.post('/api/requestPasswordResetByDigits', requestPasswordResetByDigits)
+authRouter.post('/api/resetPasswordByDigits', resetPasswordByDigits)
+authRouter.post('/api/verifyEmailOtp', verifyEmailOtp)
 
 module.exports = authRouter;

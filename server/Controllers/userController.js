@@ -511,10 +511,6 @@ function generateRandomNumber() {
 }
 
 module.exports.requestPasswordResetByDigits = (req, res) => {
-    const message = {
-        subject: 'Reset Password',
-        text: 'Use the Code below to reset password'
-    };
     const { email } = req.body;
     if (email) {
         //check if email exists
@@ -854,120 +850,104 @@ module.exports.verifyEmailOtp = (req, res) => {
         });
 };
 module.exports.resetPasswordByDigits = (req, res) => {
-    let { email, newPassword } = req.body;
-    if (newPassword) {
-        const saltRounds = 10;
-        User.find({ email })
-            .then((data) => {
-                if (data.length > 0) {
-                    //console.log(data)
-                    PasswordReset.findOne({ userId: data[0]._id })
-                        .then((passwordResetRecord) => {
-                            if (passwordResetRecord) {
-                                if (passwordResetRecord.verified) {
-                                    if (
-                                        passwordResetRecord.expiresAt >
-                                        Date.now()
-                                    ) {
-                                        bcrypt
-                                            .hash(newPassword, saltRounds)
-                                            .then((hashedNewPassword) => {
-                                                User.updateOne(
-                                                    { email: email },
-                                                    {
-                                                        password:
-                                                            hashedNewPassword
-                                                    }
-                                                )
-                                                    .then(() => {
-                                                        //update complete, now delete reset record
-                                                        PasswordReset.deleteMany(
-                                                            {
-                                                                userId: data[0]
-                                                                    ._id
-                                                            }
-                                                        )
-                                                            .then(() => {
-                                                                res.json({
-                                                                    status: 'Success',
-                                                                    message:
-                                                                        'Password has been reset successfully.'
-                                                                });
-                                                            })
-                                                            .catch((error) => {
-                                                                res.json({
-                                                                    status: 'Failed',
-                                                                    message:
-                                                                        'An error occured while finalizing password rest.'
-                                                                });
-                                                            });
+    let { email, newPassword } = req.body; // digits
+    const saltRounds = 10;
+    User.find({ email })
+        .then((data) => {
+            if (data.length > 0) {
+                //console.log(data)
+                PasswordReset.findOne({ userId: data[0]._id })
+                    .then((passwordResetRecord) => {
+                        if (passwordResetRecord) {
+                            if (passwordResetRecord.verified) {
+                                if (
+                                    passwordResetRecord.expiresAt > Date.now()
+                                ) {
+                                    bcrypt
+                                        .hash(newPassword, saltRounds)
+                                        .then((hashedNewPassword) => {
+                                            User.updateOne(
+                                                { email: email },
+                                                { password: hashedNewPassword }
+                                            )
+                                                .then(() => {
+                                                    //update complete, now delete reset record
+                                                    PasswordReset.deleteMany({
+                                                        userId: data[0]._id
                                                     })
-                                                    .catch((error) => {
-                                                        console.log(error);
-                                                        res.json({
-                                                            status: 'Failed',
-                                                            message:
-                                                                'An error occured while trying to find user in db.'
+                                                        .then(() => {
+                                                            res.json({
+                                                                status: 'SUCCESS',
+                                                                message:
+                                                                    'Password has been reset successfully.'
+                                                            });
+                                                        })
+                                                        .catch((error) => {
+                                                            res.json({
+                                                                status: 'Failed',
+                                                                message:
+                                                                    'An error occured while finalizing password rest.'
+                                                            });
                                                         });
+                                                })
+                                                .catch((error) => {
+                                                    console.log(error);
+                                                    res.json({
+                                                        status: 'Failed',
+                                                        message:
+                                                            'An error occured while trying to find user in db.'
                                                     });
-                                            })
-                                            .catch((error) => {
-                                                console.log(error);
-                                                res.json({
-                                                    status: 'Failed',
-                                                    message:
-                                                        'An error occured while hashing newPassword.'
                                                 });
+                                        })
+                                        .catch((error) => {
+                                            console.log(error);
+                                            res.json({
+                                                status: 'Failed',
+                                                message:
+                                                    'An error occured while hashing newPassword.'
                                             });
-                                    } else {
-                                        res.json({
-                                            status: 'Failed',
-                                            message:
-                                                'passwoedResetRecord expired.'
                                         });
-                                    }
                                 } else {
                                     res.json({
                                         status: 'Failed',
-                                        message: 'otp not verified.'
+                                        message: 'passwoedResetRecord expired.'
                                     });
                                 }
                             } else {
                                 res.json({
                                     status: 'Failed',
-                                    message: 'passwordResetRecord not found.'
+                                    message: 'otp not verified.'
                                 });
                             }
-                        })
-                        .catch((error) => {
-                            console.log(error);
+                        } else {
                             res.json({
                                 status: 'Failed',
-                                message:
-                                    'An error occured while trying to find PasswordReset.'
+                                message: 'passwordResetRecord not found.'
                             });
+                        }
+                    })
+                    .catch((error) => {
+                        console.log(error);
+                        res.json({
+                            status: 'Failed',
+                            message:
+                                'An error occured while trying to find PasswordReset.'
                         });
-                } else {
-                    res.json({
-                        status: 'Failed',
-                        message: 'User is not in db.'
                     });
-                }
-            })
-            .catch((error) => {
-                console.log(error);
+            } else {
                 res.json({
                     status: 'Failed',
-                    message:
-                        'An error occured while trying to find the user in db.'
+                    message: 'User is not in db.'
                 });
+            }
+        })
+        .catch((error) => {
+            console.log(error);
+            res.json({
+                status: 'Failed',
+                message: 'An error occured while trying to find the user in db.'
             });
-    } else {
-        res.json({
-            status: 'Failed',
-            message: "Can't find newPassword."
         });
-    }
 };
 
 module.exports.verify = (req, res) => {
