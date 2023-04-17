@@ -13,7 +13,8 @@ const {
     resetPasswordByDigits,
     updateUserData,
     verifyEmailOtp,
-    verifySignupOtp
+    verifySignupOtp,
+    signout
     
 } = require('../Controllers/userController');
 const auth = require('../middlewares/auth');
@@ -56,6 +57,8 @@ authRouter.get('/', auth, async (req, res) => {
 });
 authRouter.route('/api/signup').post(signup);
 authRouter.route('/api/signin').post(signin);
+authRouter.route('/api/signout').post(signout);
+
 
 authRouter.route('/api/refresh').post(refresh);
 

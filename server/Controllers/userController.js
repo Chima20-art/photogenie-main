@@ -149,6 +149,27 @@ module.exports.signin = (req, res) => {
         });
 };
 
+//signout
+module.exports.signout = (req, res) => {
+    const { email, refreshToken } = req.body;
+  
+    try {
+      const isValid = verifyRefresh(email, refreshToken);
+  
+      if (isValid) {
+        // Remove refresh token from response body of sign-in endpoint
+        const userData = { ...req.body.userData };
+        delete userData.refreshToken;
+  
+        res.status(200).json({ success: true, message: "Signout successful" });
+      } else {
+        res.status(401).json({ success: false, message: "Invalid token, signout failed" });
+      }
+    } catch (err) {
+      console.log(err);
+      res.status(500).json({ success: false, message: "An error occurred during signout" });
+    }
+  };
 //refresh Token
 module.exports.refresh = (req,res) => {
     const { email, refreshToken } = req.body;
